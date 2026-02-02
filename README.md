@@ -1,0 +1,1 @@
+This project is developed for the TISB Hackathon, focusing on Smart Cities and Future Living. Our solution aims to leverage technology to improve urban life, making cities more efficient, sustainable, and citizen-friendly.
