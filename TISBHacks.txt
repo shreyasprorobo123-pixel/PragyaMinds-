@@ -1,0 +1,74 @@
+﻿SmartPlan 2035 
+Dashboard Layers Safety & Ops Emergency 
+🏙️ Smart City Live Dashboard
+Requires Active Internet Connection
+Search City 
+Weather
+--
+Live API Data 
+Air Quality
+--
+WAQI Index 
+Traffic Load
+--
+Live Est. 
+Smart Score
+-- / 100
+Livability Index 
+🗺️ Digital Twin Visualization
+🔥 Fire Risk
+NASA FIRMS Data
+Activate Layer 
+🌊 Flood Heatmap
+Real Precipitation Density
+Generate Heatmap 
+🏙️ 3D City
+OSM Buildings 3D
+Enable 3D 
+🛰️ Satellite
+ArcGIS Imagery
+View Satellite 
+🌩️ Storm Tracker
+Real-time Clouds
+Show Radar 
+🌊 Flood Risk
+Humanitarian OSM
+Show Zones 
+🛟 Safety & Evacuation Operations
+🛟 Safe Zones
+Detect nearby shelters & schools
+Scan Area 
+🚶 Evac Routes
+Standard evacuation paths
+Show Routes 
+⚠️ Disaster Routing
+AI-adjusted safe pathing
+Find Safe Exit 
+🤖 AI Sim
+Simulate crowd movement
+Run Simulation 
+⚠️ Risk Analysis & History
+🌪️ Storm/Wind Risk
+Search a city first
+🔥 Heat/Fire Risk
+--
+☔ Flood Probability
+--
+⏳ Historical Time Machine (Online)
+View data from 1 days ago
+Past Temp
+--
+Past AQI
+--
+Past Traffic
+--
+🧠 AI City Planner
+Generate optimization strategies based on current metrics.
+Run AI Analysis 
+Waiting for data...
+🚨 Emergency Hub
+Country: -- SOS: -- 
+📍 Auto-Detect Location 
+🏥 Hospital 🚓 Police 🚒 Fire 
+(c) 2026 SmartPlan 2035 | TISBHacks Project | Online Mode
+
