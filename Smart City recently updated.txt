@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart City Platform | Hackathon Winner</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <!-- Heatmap Plugin -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+      color: white;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 15px;
+      text-align: center;
+      font-size: 26px;
+      font-weight: bold;
+      background: rgba(0,0,0,0.5);
+    }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.08);
+      padding: 12px;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background: rgba(0,198,255,0.2);
+      border: 1px solid rgba(0,198,255,0.5);
+      padding: 10px 16px;
+      border-radius: 12px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    nav button:hover {
+      background: rgba(0,198,255,0.6);
+      transform: scale(1.05);
+    }
+
+    .page {
+      display: none;
+      padding: 25px;
+      max-width: 1250px;
+      margin: auto;
+    }
+
+    .active { display: block; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.08);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.4);
+    }
+
+    input, select, textarea {
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+      width: 92%;
+      font-size: 15px;
+      margin-top: 8px;
+    }
+
+    textarea {
+      height: 70px;
+      resize: none;
+    }
+
+    button.action {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 10px;
+      margin-top: 10px;
+      background: #00c6ff;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    button.action:hover {
+      background: #009fd4;
+      transform: scale(1.05);
+    }
+
+    #map, #heatmap {
+      height: 480px;
+      border-radius: 20px;
+      margin-top: 25px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+
+    /* Profile Card */
+    #profileCard {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      background: rgba(0,0,0,0.7);
+      padding: 12px 18px;
+      border-radius: 15px;
+      font-size: 14px;
+      z-index: 2000;
+    }
+
+    /* Future City Mode */
+    .futureMode {
+      background: radial-gradient(circle, #111, #000);
+      animation: pulseBG 4s infinite alternate;
+    }
+
+    @keyframes pulseBG {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.4); }
+    }
+
+    .neonRain {
+      position: fixed;
+      width: 3px;
+      height: 80px;
+      background: cyan;
+      top: -100px;
+      animation: fall 2s linear infinite;
+      opacity: 0.8;
+      z-index: 1000;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(110vh);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>🌆 Smart City & Future Living Platform</header>
+
+<!-- PROFILE -->
+<div id="profileCard" style="display:none;">
+  👤 <span id="profileUser"></span><br>
+  🎭 Role: <span id="profileRole"></span>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.95);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+">
+  <div style="
+    background:rgba(255,255,255,0.08);
+    padding:40px;
+    border-radius:25px;
+    width:360px;
+    text-align:center;
+    box-shadow:0 0 25px black;
+  ">
+    <h2>🔐 Smart City Login</h2>
+
+    <input id="loginUser" placeholder="Username"><br><br>
+    <input id="loginPass" type="password" placeholder="Password"><br><br>
+
+    <!-- ROLE DROPDOWN -->
+    <select id="loginRole">
+      <option value="Citizen">👤 Citizen</option>
+      <option value="Admin">🔐 Admin</option>
+    </select><br><br>
+
+    <input id="adminSecret" placeholder="Admin Secret Code (Only for Admin)" />
+    <br><br>
+
+    <button class="action" onclick="userLogin()">Login</button>
+    <button class="action" onclick="userRegister()">Register</button>
+
+    <p id="loginMsg" style="margin-top:15px;color:lightgreen;"></p>
+  </div>
+</div>
+
+<!-- MAIN SITE -->
+<div id="mainSite" style="display:none;">
+
+<!-- NAV -->
+<nav>
+  <button onclick="showPage('dashboard')">📍 Dashboard</button>
+  <button onclick="showPage('problems')">⚠ Problems</button>
+  <button onclick="showPage('solutions')">💡 Solutions</button>
+  <button onclick="showPage('heat')">🔥 Heatmap</button>
+  <button onclick="showPage('admin')">🔐 Admin</button>
+  <button onclick="showPage('impact')">🌍 Impact</button>
+  <button onclick="toggleFutureCity()">🌌 Future City</button>
+  <button onclick="userLogout()">🚪 Logout</button>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="page active">
+  <h2>📍 Live Smart City Dashboard</h2>
+
+  <div class="grid">
+
+    <div class="card"><h3>🌦 Weather</h3><p id="weatherText">Enter location...</p></div>
+    <div class="card"><h3>🌫 AQI</h3><p id="aqiText">Enter location...</p></div>
+    <div class="card"><h3>🚦 Traffic</h3><p id="trafficText">Enter location...</p></div>
+    <div class="card"><h3>🏙 Smart Score</h3><p id="scoreText">Enter location...</p></div>
+
+    <div class="card">
+      <h3>📍 Set Location</h3>
+      <input id="locationBox" placeholder="Enter city OR address">
+      <button class="action" onclick="setLocationManual()">Set Location</button>
+      <button class="action" onclick="detectLocation()">Auto Detect</button>
+      <p id="locationData">Not set yet...</p>
+    </div>
+
+    <div class="card">
+      <h3>🚑 Emergency Route</h3>
+      <select id="serviceSelect">
+        <option value="hospital">🏥 Hospital</option>
+        <option value="police">🚓 Police</option>
+        <option value="fire_station">🔥 Fire Station</option>
+      </select>
+      <button class="action" onclick="routeToService()">Show Route</button>
+      <p id="routeInfo">Distance + ETA...</p>
+    </div>
+
+    <div class="card">
+      <h3>🆘 SOS Emergency</h3>
+      <button class="action" style="background:red;" onclick="triggerSOS()">
+        🚨 SOS CALL AMBULANCE
+      </button>
+      <p id="sosStatus">Waiting...</p>
+    </div>
+
+    <div class="card">
+      <h3>🚨 Report Incident</h3>
+      <p>Click map to select location</p>
+      <textarea id="incidentInput"></textarea>
+      <button class="action" onclick="saveIncident()">Submit</button>
+      <div id="incidentList"></div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+</div>
+
+<!-- PROBLEMS -->
+<div id="problems" class="page">
+  <h2>⚠ Future Smart City Problems</h2>
+  <div class="card">
+    <ul>
+      <li>Emergencies unnoticed for critical minutes</li>
+      <li>Traffic blocks ambulances</li>
+      <li>Pollution blindspots</li>
+      <li>No unified citizen-government reporting</li>
+      <li>Future cities require predictive AI safety</li>
+    </ul>
+  </div>
+</div>
+
+<!-- SOLUTIONS -->
+<div id="solutions" class="page">
+  <h2>💡 Innovative Solutions</h2>
+  <div class="card">
+    <ol>
+      <li>Smart Emergency Routing Website (This Platform)</li>
+      <li>AI Traffic Signal Priority</li>
+      <li>Incident Hotspot Heatmaps</li>
+      <li>Citizen Safety Alert Network</li>
+      <li>Sustainable Monitoring Systems</li>
+    </ol>
+  </div>
+</div>
+
+<!-- HEATMAP PAGE -->
+<div id="heat" class="page">
+  <h2>🔥 Incident Hotspot Heatmap</h2>
+  <p>This map shows dangerous zones based on reported incidents.</p>
+  <div id="heatmap"></div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div id="admin" class="page">
+  <h2>🔐 Admin Dashboard</h2>
+  <div class="card">
+    <p>Admins can clear incidents.</p>
+
+    <button class="action" style="background:red;" onclick="clearAllIncidents()">
+      🗑 Delete All Incidents
+    </button>
+
+    <p id="incidentCount">Total Incidents: 0</p>
+  </div>
+</div>
+
+<!-- IMPACT -->
+<div id="impact" class="page">
+  <h2>🌍 How This Website Helps</h2>
+  <div class="card">
+    <ul>
+      <li>Emergency routing reduces response time</li>
+      <li>Citizens report incidents instantly</li>
+      <li>Admins monitor city safety</li>
+      <li>Heatmaps predict hotspots</li>
+      <li>Future City Mode inspires next-gen living</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+/* =====================
+   USER LOGIN SYSTEM
+===================== */
+if (!localStorage.getItem("users")) {
+  localStorage.setItem("users", JSON.stringify([]));
+}
+
+function userRegister() {
+
+  let u = loginUser.value;
+  let p = loginPass.value;
+  let role = loginRole.value;
+  let secret = adminSecret.value;
+
+  // Username + Password required
+  if (!u || !p) {
+    loginMsg.innerHTML = "❌ Enter username + password!";
+    return;
+  }
+
+  // ✅ Password length validation
+  if (p.length < 6) {
+    loginMsg.innerHTML = "❌ Password must be at least 6 characters!";
+    return;
+  }
+
+  // 🔐 Admin Secret Protection
+  if (role === "Admin") {
+    if (secret !== "SMART2026") {
+      loginMsg.innerHTML = "❌ Wrong Admin Secret Code!";
+      return;
+    }
+  }
+
+  let users = JSON.parse(localStorage.getItem("users"));
+
+  // Prevent duplicate usernames
+  if (users.find(x => x.user === u)) {
+    loginMsg.innerHTML = "⚠ Username already exists!";
+    return;
+  }
+
+  // Save user
+  users.push({ user: u, pass: p, role: role });
+  localStorage.setItem("users", JSON.stringify(users));
+
+  loginMsg.innerHTML =
+    "✅ Registered successfully as " + role + "! Now Login.";
+}
+
+function userLogin() {
+  let u = loginUser.value;
+  let p = loginPass.value;
+  let role = loginRole.value;
+
+  let users = JSON.parse(localStorage.getItem("users"));
+  let found = users.find(x=>x.user===u && x.pass===p && x.role===role);
+
+  if(found){
+    localStorage.setItem("loggedInUser", u);
+    localStorage.setItem("loggedInRole", role);
+
+    loginScreen.style.display="none";
+    mainSite.style.display="block";
+
+    profileCard.style.display="block";
+    profileUser.innerHTML=u;
+    profileRole.innerHTML=role;
+
+    setTimeout(()=>initMap(),300);
+
+  } else loginMsg.innerHTML="❌ Wrong login!";
+}
+
+function userLogout() {
+  localStorage.clear();
+  location.reload();
+}
+
+/* =====================
+   PAGE SWITCH
+===================== */
+function showPage(id){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+
+  if(id==="dashboard") setTimeout(()=>map.invalidateSize(),200);
+  if(id==="heat") setTimeout(()=>heatMap.invalidateSize(),200);
+}
+
+/* =====================
+   FUTURE CITY MODE
+===================== */
+let futureOn=false;
+function toggleFutureCity(){
+  futureOn=!futureOn;
+  document.body.classList.toggle("futureMode");
+
+  if(futureOn){
+    for(let i=0;i<25;i++){
+      let drop=document.createElement("div");
+      drop.className="neonRain";
+      drop.style.left=Math.random()*100+"vw";
+      drop.style.animationDuration=(1+Math.random()*2)+"s";
+      document.body.appendChild(drop);
+
+      setTimeout(()=>drop.remove(),5000);
+    }
+  }
+}
+
+/* =====================
+   MAP INIT + INCIDENTS
+===================== */
+let map, heatMap, heatLayer;
+let userMarker, routeLine, ambulanceMarker;
+let selectedIncidentLocation=null;
+let incidentMarkers=[];
+
+function initMap(){
+  if(map) return;
+
+  map=L.map("map").setView([20.5937,78.9629],5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+  heatMap=L.map("heatmap").setView([20.5937,78.9629],5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(heatMap);
+
+  map.on("click",e=>{
+    selectedIncidentLocation=e.latlng;
+    alert("📍 Incident location selected!");
+  });
+
+  loadIncidents();
+}
+
+/* INCIDENT SAVE */
+function saveIncident(){
+  let role=localStorage.getItem("loggedInRole");
+  if(role!=="Citizen" && role!=="Admin") return;
+
+  let text=incidentInput.value;
+  if(!selectedIncidentLocation) return alert("Click map first!");
+  if(!text.trim()) return alert("Enter description!");
+
+  let incidents=JSON.parse(localStorage.getItem("incidents"))||[];
+  incidents.push({text,lat:selectedIncidentLocation.lat,lon:selectedIncidentLocation.lng});
+  localStorage.setItem("incidents",JSON.stringify(incidents));
+  loadIncidents();
+}
+
+/* LOAD INCIDENTS + HEATMAP */
+function loadIncidents(){
+  let incidents=JSON.parse(localStorage.getItem("incidents"))||[];
+
+  incidentList.innerHTML=incidents.map(i=>"🚨 "+i.text+"<hr>").join("");
+
+  incidentMarkers.forEach(m=>map.removeLayer(m));
+  incidentMarkers=[];
+
+  let heatPoints=[];
+
+  incidents.forEach(i=>{
+    let m=L.marker([i.lat,i.lon]).addTo(map).bindPopup(i.text);
+    incidentMarkers.push(m);
+    heatPoints.push([i.lat,i.lon,1]);
+  });
+
+  if(heatLayer) heatMap.removeLayer(heatLayer);
+  heatLayer=L.heatLayer(heatPoints,{radius:35}).addTo(heatMap);
+
+  incidentCount.innerHTML="Total Incidents: "+incidents.length;
+}
+
+/* CLEAR INCIDENTS (ADMIN ONLY) */
+function clearAllIncidents(){
+  let role=localStorage.getItem("loggedInRole");
+  if(role!=="Admin") return alert("❌ Only Admin can delete incidents!");
+
+  localStorage.removeItem("incidents");
+  loadIncidents();
+}
+
+/* SOS */
+function triggerSOS(){
+  if(!userMarker) return alert("Set location first!");
+  sosStatus.innerHTML="🚨 SOS Activated!";
+
+  let pos=userMarker.getLatLng();
+  let incidents=JSON.parse(localStorage.getItem("incidents"))||[];
+  incidents.push({text:"🆘 SOS Emergency!",lat:pos.lat,lon:pos.lng});
+  localStorage.setItem("incidents",JSON.stringify(incidents));
+  loadIncidents();
+
+  serviceSelect.value="hospital";
+  routeToService();
+}
+
+/* LOCATION */
+async function setLocationManual(){
+  let addr=locationBox.value;
+  let data=await (await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${addr}`)).json();
+  if(!data.length) return alert("Not found!");
+  setLocation(data[0].lat,data[0].lon,addr);
+}
+
+function detectLocation(){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    setLocation(pos.coords.latitude,pos.coords.longitude,"Auto Detected");
+  });
+}
+
+function setLocation(lat,lon,name){
+  map.setView([lat,lon],13);
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker=L.marker([lat,lon]).addTo(map).bindPopup(name).openPopup();
+  locationData.innerHTML="✅ "+name;
+}
+
+/* ROUTING */
+
+async function routeToService() {
+
+  if (!userMarker) {
+    alert("📍 Please set your location first!");
+    return;
+  }
+
+  let type = serviceSelect.value;
+
+  let searchNames = {
+    hospital: "hospital",
+    police: "police",
+    fire_station: "fire station"
+  };
+
+  let colors = {
+    hospital: "blue",
+    police: "red",
+    fire_station: "orange"
+  };
+
+  let u = userMarker.getLatLng();
+
+  routeInfo.innerHTML = "🔍 Searching nearest " + searchNames[type] + "...";
+
+  try {
+    // ✅ Proper Bounding Box Search (5km radius)
+    let delta = 0.05; // ~5km
+
+    let url =
+      `https://nominatim.openstreetmap.org/search?` +
+      `format=json&q=${searchNames[type]}` +
+      `&bounded=1` +
+      `&viewbox=` +
+      `${u.lng - delta},${u.lat + delta},` +
+      `${u.lng + delta},${u.lat - delta}` +
+      `&limit=1`;
+
+    let results = await (await fetch(url)).json();
+
+    if (!results.length) {
+      routeInfo.innerHTML = "❌ No nearby service found!";
+      return;
+    }
+
+    let dest = results[0];
+    let destLat = parseFloat(dest.lat);
+    let destLon = parseFloat(dest.lon);
+
+    // Marker for nearest service
+    L.marker([destLat, destLon])
+      .addTo(map)
+      .bindPopup("✅ Nearest " + searchNames[type])
+      .openPopup();
+
+    // Straight route demo (reliable)
+    let coords = [
+      [u.lat, u.lng],
+      [destLat, destLon]
+    ];
+
+    if (routeLine) map.removeLayer(routeLine);
+
+    routeLine = L.polyline(coords, {
+      color: colors[type],
+      weight: 6
+    }).addTo(map);
+
+    // Distance + ETA
+    let distKm =
+      (map.distance([u.lat, u.lng], [destLat, destLon]) / 1000).toFixed(2);
+
+    let etaMin = (distKm / 0.8).toFixed(1);
+
+    routeInfo.innerHTML =
+      `✅ Found: ${dest.display_name}<br>` +
+      `📏 Distance: ${distKm} km<br>` +
+      `⏱ ETA: ${etaMin} mins`;
+
+    animateAmbulance(coords);
+
+  }
+  catch (err) {
+    console.error(err);
+    routeInfo.innerHTML =
+      "❌ Search failed. Public APIs may be blocked on your network.";
+  }
+}
+
+
+</script>
+
+</body>
+</html>
