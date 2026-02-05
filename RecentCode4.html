@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart City: Integrated Core v3.0</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<style>
+/* ================= VARIABLES & RESET ================= */
+:root {
+  --bg-dark: #030508;
+  --bg-panel: rgba(13, 20, 35, 0.9);
+  --primary: #00f3ff;
+  --secondary: #bc13fe;
+  --danger: #ff0055;
+  --success: #00ff9d;
+  --warning: #ffaa00;
+  --text-main: #ffffff;
+  --text-muted: #8b9bb4;
+  --border: 1px solid rgba(0, 243, 255, 0.2);
+  --glass: blur(12px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--primary) var(--bg-dark); }
+
+body {
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(188, 19, 254, 0.05) 0%, transparent 20%),
+    radial-gradient(circle at 90% 80%, rgba(0, 243, 255, 0.05) 0%, transparent 20%);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ================= UTILS ================= */
+.hidden { display: none !important; }
+
+/* ================= LOGIN SCREEN ================= */
+#loginScreen {
+  position: fixed; inset: 0;
+  background: rgba(3, 5, 8, 0.98);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(20px);
+}
+
+.login-box {
+  background: var(--bg-panel);
+  border: var(--border);
+  padding: 40px;
+  border-radius: 20px;
+  width: 400px;
+  text-align: center;
+  box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+}
+
+.login-box h2 {
+  font-family: 'Orbitron'; color: var(--primary); margin-bottom: 25px;
+  text-transform: uppercase; letter-spacing: 2px;
+}
+
+/* ================= LAYOUT ================= */
+.app {
+  display: none; /* Hidden until login */
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  background: rgba(5, 10, 20, 0.95);
+  border-right: var(--border);
+  padding: 30px 20px;
+  display: flex; flex-direction: column; gap: 15px;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Orbitron'; font-size: 20px; color: white;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+}
+.logo i { color: var(--primary); }
+
+.nav-btn {
+  background: transparent; border: none;
+  color: var(--text-muted);
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Inter'; font-weight: 500; font-size: 14px;
+  display: flex; align-items: center; gap: 12px;
+  transition: 0.3s;
+}
+
+.nav-btn:hover, .nav-btn.active {
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--primary);
+  border-left: 3px solid var(--primary);
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+}
+
+/* Main Content */
+.main {
+  padding: 30px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 30px;
+}
+
+.user-badge {
+  background: var(--bg-panel);
+  border: var(--border);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 12px;
+  color: var(--primary);
+}
+
+/* ================= GRID & CARDS ================= */
+.page { display: none; animation: fadeIn 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--bg-panel);
+  border: var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
+}
+
+.card h3 {
+  font-family: 'Orbitron'; font-size: 14px; color: var(--text-muted);
+  margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
+}
+
+.value-text {
+  font-family: 'Orbitron'; font-size: 24px; color: white;
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+/* ================= FORMS & INPUTS ================= */
+input, select, textarea {
+  width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #334;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-family: 'Inter';
+  outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+button.action {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(0,243,255,0.2), rgba(0,243,255,0));
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-family: 'Orbitron'; font-size: 12px; cursor: pointer;
+  transition: 0.3s;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+button.action:hover { background: var(--primary); color: black; box-shadow: 0 0 15px var(--primary); }
+
+button.sos-btn {
+  background: rgba(255, 0, 85, 0.1); border-color: var(--danger); color: var(--danger);
+  animation: pulse 2s infinite;
+}
+button.sos-btn:hover { background: var(--danger); color: white; }
+
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.4); } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* ================= MAPS & CHARTS ================= */
+#map, #heatmap {
+  height: 400px;
+  border-radius: 16px;
+  border: var(--border);
+  width: 100%;
+  background: #000;
+}
+
+.chart-container-dashboard {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 150px;
+    padding-top: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.chart-bar {
+  flex: 1;
+  background: linear-gradient(to top, var(--primary), var(--secondary));
+  opacity: 0.7;
+  border-radius: 4px 4px 0 0;
+  transition: height 1s ease;
+  position: relative;
+}
+.chart-bar:hover { opacity: 1; box-shadow: 0 0 10px var(--primary); }
+.chart-label {
+  position: absolute; bottom: -25px; width: 100%; text-align: center; font-size: 10px; color: var(--text-muted);
+}
+
+/* ================= RANKINGS LIST ================= */
+.ranking-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.rank-list-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+.rank-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer; transition: 0.2s;
+}
+.rank-item:hover, .rank-item.active {
+    background: rgba(0, 243, 255, 0.1);
+    border-left: 3px solid var(--primary);
+}
+.rank-num { font-family: 'Orbitron'; color: var(--secondary); font-weight: bold; width: 30px;}
+.rank-name { flex-grow: 1; font-weight: 600; }
+.rank-score { font-family: 'Orbitron'; color: var(--success); }
+
+/* ================= REVIEWS SECTION ================= */
+.review-item {
+  background: rgba(255,255,255,0.03);
+  padding: 15px; border-radius: 12px;
+  margin-bottom: 10px;
+  border-left: 2px solid var(--primary);
+}
+.review-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.review-user { font-weight: 600; font-size: 14px; color: var(--primary); }
+.review-stars { color: var(--warning); font-size: 12px; }
+.review-text { font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.4; font-style: italic; }
+
+/* ================= NEON RAIN ================= */
+.neon-rain {
+  position: fixed; top: -100px; width: 2px; height: 60px;
+  background: var(--primary);
+  z-index: 9999; pointer-events: none;
+  animation: fall linear infinite;
+  box-shadow: 0 0 10px var(--primary);
+}
+@keyframes fall { to { transform: translateY(110vh); } }
+
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h2><i class="fa-solid fa-city"></i> City OS</h2>
+    <input id="loginUser" placeholder="Username">
+    <input id="loginPass" type="password" placeholder="Password (min 6 chars)">
+    <select id="loginRole">
+      <option value="Citizen">Citizen Access</option>
+      <option value="Admin">Admin Clearance</option>
+    </select>
+    <input id="adminSecret" placeholder="Admin Secret Key">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+        <button class="action" onclick="doRegister()">Register</button>
+        <button class="action" onclick="doLogin()">Login</button>
+    </div>
+    <p id="loginMsg" style="margin-top:15px; font-size:12px; color:var(--danger); min-height:18px;"></p>
+  </div>
+</div>
+
+<div id="mainSite" class="app">
+
+  <aside class="sidebar">
+    <div class="logo"><i class="fa-solid fa-network-wired"></i> SMART CITY</div>
+    
+    <nav style="display:flex; flex-direction:column; gap:8px;">
+      <button class="nav-btn active" onclick="showPage('dashboard', this)"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+      <button class="nav-btn" onclick="showPage('rankings', this)"><i class="fa-solid fa-trophy"></i> Rankings & Analytics</button>
+      <button class="nav-btn" onclick="showPage('reviews', this)"><i class="fa-solid fa-comments"></i> City Reviews</button>
+      <button class="nav-btn" onclick="showPage('problems', this)"><i class="fa-solid fa-triangle-exclamation"></i> Problems</button>
+      <button class="nav-btn" onclick="showPage('heat', this)"><i class="fa-solid fa-fire"></i> Heatmap</button>
+      <button class="nav-btn" onclick="showPage('admin', this)"><i class="fa-solid fa-lock"></i> Admin</button>
+      
+      <div style="height:1px; background:rgba(255,255,255,0.1); margin:10px 0;"></div>
+      
+      <button class="nav-btn" onclick="toggleFuture()"><i class="fa-solid fa-wand-magic-sparkles"></i> Future Mode</button>
+      <button class="nav-btn" onclick="logout()" style="color:var(--danger)"><i class="fa-solid fa-power-off"></i> Logout</button>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <header class="header">
+      <h2 style="font-family:'Orbitron'">COMMAND CENTER</h2>
+      <div class="user-badge">
+        <i class="fa-solid fa-user"></i> <span id="pUser">Guest</span> | <span id="pRole" style="color:var(--text-muted)">N/A</span>
+      </div>
+    </header>
+
+    <div id="dashboard" class="page active">
+        
+        <div class="grid">
+            <div class="card">
+                <h3>WEATHER <i class="fa-solid fa-cloud-sun"></i></h3>
+                <div id="weatherText" class="value-text">--°C</div>
+            </div>
+            <div class="card">
+                <h3>AIR QUALITY <i class="fa-solid fa-wind"></i></h3>
+                <div id="aqiText" class="value-text">--</div>
+            </div>
+            <div class="card">
+                <h3>TRAFFIC <i class="fa-solid fa-car"></i></h3>
+                <div id="trafficText" class="value-text">--</div>
+            </div>
+            <div class="card">
+                <h3>SMART SCORE <i class="fa-solid fa-chart-pie"></i></h3>
+                <div id="scoreText" class="value-text" style="color:var(--success)">--</div>
+            </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 2fr 1fr;">
+            <div class="card" style="grid-row: span 2;">
+                <h3>LIVE TRACKING</h3>
+                <div id="map"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <input id="locationBox" placeholder="Enter City..." style="margin:0;">
+                    <button class="action" style="width:auto;" onclick="setLocationManual()">Search</button>
+                    <button class="action" style="width:auto;" onclick="detectLocation()"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:20px;">
+                
+                <div class="card">
+                    <h3>LIVE SAFETY TREND (6h) <i class="fa-solid fa-shield-halved" style="color:var(--primary)"></i></h3>
+                    <div class="chart-container-dashboard" id="safetyLiveChart">
+                        </div>
+                </div>
+
+                <div class="card">
+                    <h3>ACTIONS</h3>
+                    <select id="serviceSelect" style="margin-bottom:10px;">
+                        <option>Hospital</option>
+                        <option>Police Dept</option>
+                        <option>Fire Station</option>
+                    </select>
+                    <button class="action" onclick="routeToService()">Route</button>
+                </div>
+
+                <div class="card" style="border-color:var(--danger);">
+                    <h3 style="color:var(--danger)">PANIC BUTTON</h3>
+                    <button class="action sos-btn" onclick="triggerSOS()">TRIGGER SOS</button>
+                    <p id="sosStatus" style="text-align:center; margin-top:5px; font-size:12px;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rankings" class="page">
+        <div class="ranking-layout">
+            <div class="card rank-list-container">
+                <h3><i class="fa-solid fa-trophy"></i> IMD Smart City Index 2024</h3>
+                <div id="rankingList"></div>
+            </div>
+
+            <div class="card" style="display:flex; flex-direction:column;">
+                <h3><i class="fa-solid fa-chart-simple"></i> City Analytics</h3>
+                <div style="text-align:center; margin-bottom:10px;">
+                    <h2 id="spotlightName" style="color:var(--primary); font-family:'Orbitron'">Select a City</h2>
+                    <p id="spotlightSubtitle" style="color:var(--text-muted); font-size:12px;">Click a city on the left to view data</p>
+                </div>
+                <div style="position: relative; height:300px; width:100%;">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+                <div style="margin-top:auto; font-size:11px; color:#555; text-align:center;">
+                    Sources: IMD Smart City Index 2024, Numbeo Safety Index 2024
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reviews" class="page">
+        <div class="grid" style="grid-template-columns: 1fr 2fr;">
+            
+            <div class="card">
+                <h3>WRITE REVIEW</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Reviewing: <span id="reviewTarget" style="color:var(--primary)">Global</span></p>
+                
+                <input id="reviewName" placeholder="Your Name">
+                <select id="reviewRating">
+                    <option value="5">★★★★★ Excellent</option>
+                    <option value="4">★★★★☆ Good</option>
+                    <option value="3">★★★☆☆ Average</option>
+                    <option value="2">★★☆☆☆ Poor</option>
+                    <option value="1">★☆☆☆☆ Unsafe</option>
+                </select>
+                <textarea id="reviewText" placeholder="Share your experience..." style="height:100px;"></textarea>
+                <button class="action" onclick="submitReview()">Post Review</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="display:flex; justify-content:space-between;">
+                    <h3>COMMUNITY FEEDBACK</h3>
+                    <select id="reviewFilter" onchange="renderReviews(this.value)" style="width:150px; margin:0; padding:5px;">
+                        <option value="All">All Cities</option>
+                        </select>
+                </div>
+                <div id="reviewsContainer" style="max-height:500px; overflow-y:auto; padding-right:5px; margin-top:15px;">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="problems" class="page">
+        <div class="card">
+            <h3>CURRENT URBAN CHALLENGES</h3>
+            <ul>
+                <li style="padding:10px; border-bottom:1px solid #ffffff11">High latency in emergency response (>15 mins avg)</li>
+                <li style="padding:10px; border-bottom:1px solid #ffffff11">Unpredictable traffic congestion in downtown</li>
+                <li style="padding:10px; border-bottom:1px solid #ffffff11">Rising PM2.5 levels during industrial hours</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="heat" class="page">
+        <div class="card">
+            <h3>INCIDENT DENSITY</h3>
+            <div id="heatmap"></div>
+        </div>
+    </div>
+
+    <div id="admin" class="page">
+        <div class="card">
+            <h3>ADMINISTRATION</h3>
+            <p id="incidentCount" class="value-text" style="font-size:18px; margin-bottom:20px;">Total Incidents: 0</p>
+            <button class="action sos-btn" style="max-width:200px;" onclick="clearIncidents()">PURGE DATABASE</button>
+        </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ---------- REAL DATA (IMD 2024 & NUMBEO) ---------- */
+const cityData = [
+    { rank: 1, name: "Zurich", country: "Switzerland", score: "AAA", safety: 76.8, tech: 98, eco: 95 },
+    { rank: 2, name: "Oslo", country: "Norway", score: "AAA", safety: 66.8, tech: 92, eco: 97 },
+    { rank: 3, name: "Canberra", country: "Australia", score: "AAA", safety: 71.6, tech: 89, eco: 94 },
+    { rank: 4, name: "Geneva", country: "Switzerland", score: "AAA", safety: 69.4, tech: 91, eco: 90 },
+    { rank: 5, name: "Singapore", country: "Singapore", score: "AAA", safety: 77.0, tech: 96, eco: 85 },
+    { rank: 6, name: "Copenhagen", country: "Denmark", score: "AAA", safety: 73.8, tech: 90, eco: 96 },
+    { rank: 7, name: "Lausanne", country: "Switzerland", score: "AA", safety: 73.4, tech: 88, eco: 92 },
+    { rank: 8, name: "London", country: "UK", score: "AA", safety: 47.0, tech: 94, eco: 78 },
+    { rank: 9, name: "Helsinki", country: "Finland", score: "AA", safety: 75.3, tech: 91, eco: 93 },
+    { rank: 10, name: "Abu Dhabi", country: "UAE", score: "AA", safety: 88.9, tech: 95, eco: 70 },
+    { rank: 11, name: "Taipei", country: "Taiwan", score: "A", safety: 83.7, tech: 93, eco: 82 }
+];
+
+// Simulated real-world reviews
+let reviewsData = [
+    { city: "Zurich", user: "Hans M.", rating: 5, text: "Public transport is expensive but flawless. You never need a car." },
+    { city: "Zurich", user: "Sarah L.", rating: 4, text: "Incredibly clean and safe, but cost of living is rising fast." },
+    { city: "Singapore", user: "Wei C.", rating: 5, text: "Safest place on earth. The digital gov services are seamless." },
+    { city: "Singapore", user: "John D.", rating: 3, text: "Efficient, but the humidity is killer and it feels a bit strict." },
+    { city: "London", user: "Emily R.", rating: 4, text: "Tech scene is booming, endless jobs. Crime is a worry though." },
+    { city: "Abu Dhabi", user: "Ahmed K.", rating: 5, text: "Zero crime. I leave my car unlocked. Roads are perfect." },
+    { city: "Oslo", user: "Erik B.", rating: 5, text: "EV charging everywhere. The air is so fresh." }
+];
+
+/* ---------- AUTH ---------- */
+const ADMIN_SECRET = "SMART2026";
+if(!localStorage.users) localStorage.users = "[]";
+
+function doRegister(){
+  let u = loginUser.value, p = loginPass.value, r = loginRole.value, s = adminSecret.value;
+  if(!u || !p) return loginMsg.innerText = "Error: Fields cannot be empty.";
+  if(p.length < 6) return loginMsg.innerText = "Error: Password too short.";
+  if(r === "Admin" && s !== ADMIN_SECRET) return loginMsg.innerText = "Error: Invalid Admin Key.";
+  
+  let users = JSON.parse(localStorage.users);
+  if(users.find(x => x.u === u)) return loginMsg.innerText = "Error: User already exists.";
+  
+  users.push({u, p, r});
+  localStorage.users = JSON.stringify(users);
+  loginMsg.innerText = "Success: Account created. Proceed to login.";
+  loginMsg.style.color = "var(--success)";
+}
+
+function doLogin(){
+  let u = loginUser.value, p = loginPass.value, r = loginRole.value;
+  let users = JSON.parse(localStorage.users);
+  let found = users.find(x => x.u === u && x.p === p && x.r === r);
+  
+  if(!found) return loginMsg.innerText = "Error: Invalid credentials.";
+  
+  localStorage.currentUser = JSON.stringify(found);
+  startSession(found);
+}
+
+function startSession(user){
+  document.getElementById('loginScreen').style.display = "none";
+  document.getElementById('mainSite').style.display = "grid";
+  document.getElementById('pUser').innerText = user.u;
+  document.getElementById('pRole').innerText = user.r;
+  
+  setTimeout(() => {
+    initMap();
+    initRankingPage();
+    renderLiveSafetyChart();
+  }, 500);
+}
+
+function logout(){
+  localStorage.removeItem("currentUser");
+  location.reload();
+}
+
+if(localStorage.currentUser){
+  startSession(JSON.parse(localStorage.currentUser));
+}
+
+/* ---------- UI NAVIGATION ---------- */
+function showPage(id, btn){
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  
+  if(btn) {
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+  }
+
+  // Reflow maps/charts
+  setTimeout(() => {
+    if(map) map.invalidateSize();
+    if(heatMap) heatMap.invalidateSize();
+  }, 100);
+}
+
+/* ---------- DASHBOARD LOGIC ---------- */
+function renderLiveSafetyChart() {
+    const container = document.getElementById('safetyLiveChart');
+    let barsHtml = '';
+    // Generate 6 bars representing last 6 hours (Simulation)
+    for(let i=0; i<6; i++) {
+        const height = Math.floor(Math.random() * 60) + 30; // 30% to 90%
+        const color = height > 80 ? 'var(--success)' : height > 50 ? 'var(--primary)' : 'var(--danger)';
+        barsHtml += `<div class="chart-bar" style="height:${height}%; background:${color}"><div class="chart-label">-${6-i}h</div></div>`;
+    }
+    container.innerHTML = barsHtml;
+}
+
+/* ---------- RANKINGS & CHART.JS INTEGRATION ---------- */
+let rankingChart = null;
+
+function initRankingPage() {
+    // Populate List
+    const listEl = document.getElementById('rankingList');
+    listEl.innerHTML = cityData.map((c, i) => `
+        <div class="rank-item" onclick="selectCity(${i}, this)">
+            <div class="rank-num">#${c.rank}</div>
+            <div class="rank-name">${c.name} <small style="color:var(--text-muted)">${c.country}</small></div>
+            <div class="rank-score">${c.score}</div>
+        </div>
+    `).join('');
+
+    // Populate Review Dropdown
+    const filterEl = document.getElementById('reviewFilter');
+    // Clear existing options except 'All'
+    filterEl.innerHTML = '<option value="All">All Cities</option>';
+    cityData.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = c.name;
+        opt.innerText = c.name;
+        filterEl.appendChild(opt);
+    });
+
+    // Select first city by default
+    const firstItem = listEl.querySelector('.rank-item');
+    if(firstItem) selectCity(0, firstItem);
+    
+    renderReviews("All");
+}
+
+function selectCity(index, element) {
+    // UI Active State
+    document.querySelectorAll('.rank-item').forEach(el => el.classList.remove('active'));
+    if(element) element.classList.add('active');
+
+    const city = cityData[index];
+    
+    // Update Text
+    document.getElementById('spotlightName').innerText = city.name.toUpperCase();
+    document.getElementById('spotlightSubtitle').innerText = `${city.country} | IMD Rating: ${city.score}`;
+
+    // Update Chart
+    const ctx = document.getElementById('rankingChart').getContext('2d');
+    
+    if (rankingChart) rankingChart.destroy();
+
+    rankingChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Safety (Numbeo)', 'Tech Infra', 'Eco-Friendliness', 'Traffic Efficiency', 'Health Services'],
+            datasets: [{
+                label: city.name,
+                data: [city.safety, city.tech, city.eco, city.tech - 10, city.safety + 5], // Simulated extra data
+                backgroundColor: 'rgba(0, 243, 255, 0.4)',
+                borderColor: '#00f3ff',
+                borderWidth: 2,
+                pointBackgroundColor: '#fff'
+            },
+            {
+                label: 'Global Avg',
+                data: [60, 70, 65, 50, 60],
+                backgroundColor: 'rgba(255, 0, 85, 0.1)',
+                borderColor: '#ff0055',
+                borderWidth: 1,
+                borderDash: [5, 5]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(255,255,255,0.1)' },
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    pointLabels: { color: '#8b9bb4', font: {size: 10} },
+                    ticks: { display: false, backdropColor: 'transparent' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } }
+            }
+        }
+    });
+
+    // Update Reviews Target text
+    document.getElementById('reviewTarget').innerText = city.name;
+}
+
+/* ---------- REVIEWS LOGIC ---------- */
+function renderReviews(filterCity) {
+    const container = document.getElementById('reviewsContainer');
+    const filtered = filterCity === "All" ? reviewsData : reviewsData.filter(r => r.city === filterCity);
+
+    if(filtered.length === 0) {
+        container.innerHTML = '<p style="color:gray; text-align:center; margin-top:20px;">No reviews yet for this location.</p>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(r => `
+        <div class="review-item">
+            <div class="review-header">
+                <span class="review-user">${r.user} <small style="color:var(--text-muted); font-weight:400;">@ ${r.city}</small></span>
+                <span class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+            </div>
+            <div class="review-text">"${r.text}"</div>
+        </div>
+    `).join('');
+}
+
+function submitReview() {
+    const name = document.getElementById('reviewName').value;
+    const text = document.getElementById('reviewText').value;
+    const rating = parseInt(document.getElementById('reviewRating').value);
+    const currentTarget = document.getElementById('reviewTarget').innerText;
+    
+    // If target is global/default, assume user means the top ranked city or require selection (keeping it simple here)
+    let city = currentTarget === "Global" ? "Zurich" : currentTarget;
+
+    if(!name || !text) return alert("Please fill all fields");
+
+    reviewsData.unshift({ city: city, user: name, rating: rating, text: text });
+    
+    document.getElementById('reviewText').value = "";
+    
+    // Refresh list if current filter allows
+    const currentFilter = document.getElementById('reviewFilter').value;
+    if(currentFilter === "All" || currentFilter === city) {
+        renderReviews(currentFilter);
+    }
+    
+    alert("Review Submitted!");
+}
+
+/* ---------- MAPS ---------- */
+let map, heatMap, heatLayer, userMarker;
+let currentLocation = "Zurich"; // Default to rank 1
+
+function initMap(){
+  if(map) return;
+  
+  const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+  const attrib = '&copy; OpenStreetMap &copy; CARTO';
+
+  // Default view Zurich
+  map = L.map("map").setView([47.37, 8.54], 12);
+  L.tileLayer(darkTiles, { attribution: attrib }).addTo(map);
+  
+  heatMap = L.map("heatmap").setView([47.37, 8.54], 12);
+  L.tileLayer(darkTiles, { attribution: attrib }).addTo(heatMap);
+  
+  // Dummy Incidents for Heatmap
+  const incidents = [
+      {lat: 47.37, lng: 8.54}, {lat: 47.38, lng: 8.55}, {lat: 47.36, lng: 8.53}
+  ];
+  heatLayer = L.heatLayer(incidents.map(x=>[x.lat,x.lng,1]), {radius: 25, gradient: {0.4: 'blue', 1: 'red'}}).addTo(heatMap);
+}
+
+/* ---------- LOCATION & APIS ---------- */
+async function setLocationManual(){
+  let q = locationBox.value;
+  if(!q) return;
+  let r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}`);
+  let d = await r.json();
+  if(!d.length) { alert("Location not found"); return; }
+  
+  currentLocation = d[0].display_name.split(',')[0];
+  setLocation(d[0].lat, d[0].lon, currentLocation);
+}
+
+function detectLocation(){
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => {
+        currentLocation = "GPS Location";
+        setLocation(p.coords.latitude, p.coords.longitude, "GPS Location");
+    });
+  } else {
+    alert("Geolocation not supported.");
+  }
+}
+
+function setLocation(lat, lon, name){
+  map.setView([lat, lon], 14);
+  
+  const neonIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: "<div style='background-color:#00f3ff; width: 12px; height:12px; border-radius:50%; box-shadow: 0 0 10px #00f3ff, 0 0 20px #00f3ff;'></div>",
+    iconSize: [12, 12]
+  });
+
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker = L.marker([lat, lon], {icon: neonIcon}).addTo(map).bindPopup(name).openPopup();
+  
+  loadWeather(lat, lon);
+  loadAQI(lat, lon);
+  simulateTraffic();
+  renderLiveSafetyChart(); 
+}
+
+async function loadWeather(lat, lon){
+  try {
+      let r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+      let d = await r.json();
+      weatherText.innerText = d.current_weather.temperature + "°C";
+  } catch(e) { weatherText.innerText = "Error"; }
+}
+
+async function loadAQI(lat, lon){
+  try {
+      let r = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm2_5`);
+      let d = await r.json();
+      let aqi = d.current.pm2_5;
+      aqiText.innerText = "PM2.5: " + aqi;
+  } catch(e) { aqiText.innerText = "--"; }
+}
+
+function simulateTraffic(){
+  let t = ["Low", "Moderate", "High"][Math.floor(Math.random() * 3)];
+  trafficText.innerText = t;
+  scoreText.innerText = Math.floor(Math.random() * 20 + 80) + "/100";
+}
+
+function triggerSOS(){
+  sosStatus.innerText = "SIGNAL SENT! GPS TRACKING ACTIVE.";
+  sosStatus.style.color = "var(--danger)";
+}
+
+function routeToService() {
+    alert("Route calculated to nearest " + document.getElementById('serviceSelect').value);
+}
+
+/* ---------- FUTURE FX ---------- */
+let future = false;
+function toggleFuture(){
+  future = !future;
+  if(future){
+    window.rainInterval = setInterval(() => {
+        let n = document.createElement("div");
+        n.className = "neon-rain";
+        n.style.left = Math.random() * 100 + "vw";
+        n.style.animationDuration = (0.5 + Math.random() * 1.5) + "s";
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 5000);
+    }, 200);
+  } else {
+    clearInterval(window.rainInterval);
+    document.querySelectorAll(".neon-rain").forEach(e => e.remove());
+  }
+}
+</script>
+
+</body>
+</html>
